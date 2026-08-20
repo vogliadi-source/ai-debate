@@ -730,17 +730,37 @@
         }
 
         // Export page directly to PDF file
-        function exportToPDF() {
-            // Mirror input and textarea values into attributes for proper html2canvas capture
-            const inputs = document.querySelectorAll('input');
-            inputs.forEach(input => {
-                if (input.type === 'radio' || input.type === 'checkbox') {
-                    if (input.checked) input.setAttribute('checked', 'checked');
-                    else input.removeAttribute('checked');
-                } else {
-                    input.setAttribute('value', input.value);
-                }
-            });
+        // 모바일 좌측 밀림 방지 적용된 PDF 저장 함수
+async function exportToPDF() {
+    // 1. 모바일 스크롤 위치로 인한 여백 왜곡 방지 (최상단으로 이동)
+    window.scrollTo(0, 0);
+
+    const element = document.getElementById('pdfArea');
+    const studentId = document.getElementById('studentId')?.value.trim() || '학번미입력';
+    const studentName = document.getElementById('studentName')?.value.trim() || '이름미입력';
+    const fileName = `인공지능과 인간의 공존 토론(${studentId}_${studentName}).pdf`;
+
+    const opt = {
+        margin:       [0, 0, 0, 0],
+        filename:     fileName,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+            scale: 2, 
+            useCORS: true, 
+            logging: false,
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: 800 // 모바일 화면 너비를 데스크톱 규격으로 강제 고정
+        },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'], before: '.pdf-page-break' }
+    };
+
+    // 2. 약간의 지연 시간을 주어 레이아웃 고정 후 PDF 생성
+    setTimeout(() => {
+        html2pdf().set(opt).from(element).save();
+    }, 100);
+}
 
             const selects = document.querySelectorAll('select');
             selects.forEach(select => {
