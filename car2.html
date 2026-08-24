@@ -503,7 +503,7 @@
 
     <script>
         // 🚨 1단계에서 발급받은 구글 앱스 스크립트 웹 앱 URL을 아래 따옴표 안에 꼭 넣으세요!
-        const GAS_URL = "여기에_발급받은_GAS_웹앱_URL을_붙여넣으세요";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbw12_9T6uKtwumIMLceqdWsLQdOBd_9hY8ujjRN7FgskEAZuD8hvMcGHjQXnoHg_6J3-Q/exec";
 
         let myChart = null;
 
@@ -534,7 +534,7 @@
 
         // 구글 스프레드시트에 저장 및 패들렛 제출용 링크 복사
         async function saveAndCopyLink() {
-            if (!GAS_URL || GAS_URL === "여기에_발급받은_GAS_웹앱_URL을_붙여넣으세요") {
+            if (!GAS_URL || GAS_URL === "https://script.google.com/macros/s/AKfycbw12_9T6uKtwumIMLceqdWsLQdOBd_9hY8ujjRN7FgskEAZuD8hvMcGHjQXnoHg_6J3-Q/exec") {
                 alert('구글 앱스 스크립트 URL이 설정되지 않았습니다. 코드 상단의 GAS_URL을 입력해 주세요.');
                 return;
             }
