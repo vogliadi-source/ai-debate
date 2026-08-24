@@ -514,7 +514,7 @@
             const urlParams = new URLSearchParams(window.location.search);
             const savedId = urlParams.get('id');
 
-            if (savedId && GAS_URL && GAS_URL !== "https://script.google.com/macros/s/AKfycbw12_9T6uKtwumIMLceqdWsLQdOBd_9hY8ujjRN7FgskEAZuD8hvMcGHjQXnoHg_6J3-Q/exec") {
+            if (savedId && GAS_URL && GAS_URL !== "YOUR_GAS_URL_HERE") {
                 loadDataFromGAS(savedId);
             } else {
                 loadSavedData();
@@ -534,7 +534,7 @@
 
         // 구글 스프레드시트에 저장 및 패들렛 제출용 링크 복사
         async function saveAndCopyLink() {
-            if (!GAS_URL || GAS_URL === "https://script.google.com/macros/s/AKfycbw12_9T6uKtwumIMLceqdWsLQdOBd_9hY8ujjRN7FgskEAZuD8hvMcGHjQXnoHg_6J3-Q/exec") {
+            if (!GAS_URL || GAS_URL === "YOUR_GAS_URL_HERE") {
                 alert('구글 앱스 스크립트 URL이 설정되지 않았습니다. 코드 상단의 GAS_URL을 입력해 주세요.');
                 return;
             }
