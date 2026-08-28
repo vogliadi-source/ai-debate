@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>순서도 메이커 (Flowchart Builder)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Pretendard', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* SVG Grid Background */
+        .bg-grid {
+            background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-attachment: local;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Symbol palette hover effects */
+        .palette-item {
+            transition: all 0.2s ease;
+        }
+        .palette-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Selected element indicator */
+        .selected-shape {
+            stroke-dasharray: 4;
+            animation: dash 1s linear infinite;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -8;
+            }
+        }
+
+        /* Handle styling */
+        .port-point {
+            transition: r 0.15s ease, fill 0.15s ease;
+            cursor: crosshair;
+        }
+        .port-point:hover {
+            r: 7;
+            fill: #3b82f6 !important;
+        }
+
+        .bend-handle {
+            cursor: move;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .has-tooltip:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between relative z-[100] shadow-sm">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-pink-400 via-purple-400 to-indigo-400 flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-diagram-project text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-slate-800 text-lg leading-tight">순서도 메이커</h1>
+                <p class="text-xs text-slate-400">드래그 & 드롭 기반 순서도 제작 도구</p>
+            </div>
+        </div>
+
+        <!-- Top Controls -->
+        <div class="flex items-center space-x-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+            <button id="tool-select" onclick="setMode('select')" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition bg-white shadow-sm text-indigo-600">
+                <i class="fa-solid fa-mouse-pointer"></i> 선택/이동
+            </button>
+            <div class="h-4 w-[1px] bg-slate-300 mx-1"></div>
+            <button onclick="undo()" class="p-1.5 rounded-lg text-slate-600 hover:bg-white hover:text-slate-900 text-xs transition has-tooltip relative">
+                <i class="fa-solid fa-rotate-left"></i>
+                <span class="tooltip absolute top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded shadow whitespace-nowrap">실행 취소</span>
+            </button>
+        </div>
+
+        <!-- Export Buttons -->
+        <div class="flex items-center space-x-2 relative z-[110]">
+            <div class="relative inline-block text-left">
+                <button id="export-dropdown-btn" onclick="toggleExportMenu()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl shadow-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-download"></i>
+                    <span>순서도 저장하기</span>
+                    <i class="fa-solid fa-chevron-down text-xs ml-1"></i>
+                </button>
+                
+                <div id="export-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-[120]">
+                    <button onclick="exportCanvas('png')" class="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                        <i class="fa-regular fa-image text-emerald-500 text-sm"></i> PNG 이미지 저장
+                    </button>
+                    <button onclick="exportCanvas('jpg')" class="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                        <i class="fa-regular fa-file-image text-blue-500 text-sm"></i> JPG 이미지 저장
+                    </button>
+                    <div class="border-t border-slate-100 my-1"></div>
+                    <button onclick="exportCanvas('pdf')" class="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                        <i class="fa-regular fa-file-pdf text-rose-500 text-sm"></i> PDF 문서 저장
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Area -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Sidebar: Flowchart Symbol Palette -->
+        <aside class="w-72 bg-white border-r border-slate-200 flex flex-col z-10 shadow-sm shrink-0">
+            <div class="p-4 border-b border-slate-100">
+                <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-shapes text-indigo-500"></i> 순서도 기호 보관함
+                </h2>
+                <p class="text-xs text-slate-400 mt-0.5">기호를 끌어다 놓거나 클릭하세요</p>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 space-y-3.5">
+                
+                <!-- 1. Terminal (터미널) -->
+                <div class="palette-item bg-rose-50/80 border-2 border-rose-200 hover:border-rose-300 rounded-xl p-3 cursor-grab flex items-center justify-between"
+                     draggable="true" ondragstart="handleDragStart(event, 'terminal')" onclick="handlePaletteClick('terminal')">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-6 rounded-full bg-rose-200 border-2 border-rose-400 flex items-center justify-center text-[10px] font-bold text-rose-800 shadow-sm">
+                            시작
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-rose-950">터미널 (Terminal)</div>
+                            <div class="text-[10px] text-rose-600">시작 및 종료 표시</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-grip-vertical text-rose-300"></i>
+                </div>
+
+                <!-- 2. Process (처리) -->
+                <div class="palette-item bg-sky-50/80 border-2 border-sky-200 hover:border-sky-300 rounded-xl p-3 cursor-grab flex items-center justify-between"
+                     draggable="true" ondragstart="handleDragStart(event, 'process')" onclick="handlePaletteClick('process')">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-6 bg-sky-200 border-2 border-sky-400 rounded-sm flex items-center justify-center text-[10px] font-bold text-sky-800 shadow-sm">
+                            처리
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-sky-950">처리 (Process)</div>
+                            <div class="text-[10px] text-sky-600">연산, 실행 과정</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-grip-vertical text-sky-300"></i>
+                </div>
+
+                <!-- 3. Decision (조건) -->
+                <div class="palette-item bg-amber-50/80 border-2 border-amber-200 hover:border-amber-300 rounded-xl p-3 cursor-grab flex items-center justify-between"
+                     draggable="true" ondragstart="handleDragStart(event, 'decision')" onclick="handlePaletteClick('decision')">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-6 flex items-center justify-center">
+                            <div class="w-5 h-5 bg-amber-200 border-2 border-amber-400 rotate-45 flex items-center justify-center shadow-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-amber-950">조건 (Decision)</div>
+                            <div class="text-[10px] text-amber-600">판단 및 분기 (Yes/No)</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-grip-vertical text-amber-300"></i>
+                </div>
+
+                <!-- 4. Input/Output (입출력) -->
+                <div class="palette-item bg-emerald-50/80 border-2 border-emerald-200 hover:border-emerald-300 rounded-xl p-3 cursor-grab flex items-center justify-between"
+                     draggable="true" ondragstart="handleDragStart(event, 'io')" onclick="handlePaletteClick('io')">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-6 bg-emerald-200 border-2 border-emerald-400 -skew-x-12 rounded-sm flex items-center justify-center text-[10px] font-bold text-emerald-800 shadow-sm">
+                            입출력
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-emerald-950">입출력 (Input/Output)</div>
+                            <div class="text-[10px] text-emerald-600">데이터 입력 및 출력</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-grip-vertical text-emerald-300"></i>
+                </div>
+
+                <!-- 5. Preparation (준비) -->
+                <div class="palette-item bg-purple-50/80 border-2 border-purple-200 hover:border-purple-300 rounded-xl p-3 cursor-grab flex items-center justify-between"
+                     draggable="true" ondragstart="handleDragStart(event, 'preparation')" onclick="handlePaletteClick('preparation')">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-6 bg-purple-200 border-2 border-purple-400 flex items-center justify-center text-[10px] font-bold text-purple-800 shadow-sm" style="clip-path: polygon(15% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%);">
+                            준비
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-purple-950">준비 (Preparation)</div>
+                            <div class="text-[10px] text-purple-600">변수 선언 및 초기화</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-grip-vertical text-purple-300"></i>
+                </div>
+
+                <!-- 6. Connector (연결자) -->
+                <div class="palette-item bg-orange-50/80 border-2 border-orange-200 hover:border-orange-300 rounded-xl p-3 cursor-grab flex items-center justify-between"
+                     draggable="true" ondragstart="handleDragStart(event, 'connector')" onclick="handlePaletteClick('connector')">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-6 flex items-center justify-center">
+                            <div class="w-5 h-5 bg-orange-200 border-2 border-orange-400 rounded-full flex items-center justify-center text-[9px] font-bold text-orange-800 shadow-sm">
+                                A
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-orange-950">연결자 (Connector)</div>
+                            <div class="text-[10px] text-orange-600">페이지 내 흐름 연결점</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-grip-vertical text-orange-300"></i>
+                </div>
+
+            </div>
+
+            <!-- Drag Guide & Example Footer -->
+            <div class="p-3 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-500 flex flex-col gap-2.5">
+                <button onclick="loadMedicalExample()" id="example-btn" class="w-full px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-book-medical"></i> 의사 진료 예시 보기
+                </button>
+                <div class="flex items-start gap-1.5">
+                    <i class="fa-solid fa-lightbulb text-amber-500 mt-0.5"></i>
+                    <span>기호를 클릭하거나 파란 점을 끌어 선을 연결하세요!</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center Interactive SVG Canvas -->
+        <main class="flex-1 relative bg-slate-100 overflow-auto bg-grid" id="canvas-container"
+              ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+            
+            <!-- Example Mode Banner -->
+            <div id="example-banner" class="hidden fixed top-16 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-6 py-2 rounded-b-xl shadow-lg z-30 flex items-center gap-3 transition-all">
+                <i class="fa-solid fa-circle-info text-emerald-100"></i>
+                <span class="text-xs font-semibold tracking-wide">예시 모드입니다. 상단의 <span class="bg-white/20 px-2 py-0.5 rounded font-bold">'선택/이동'</span> 버튼을 누르면 원래 작업으로 돌아갑니다.</span>
+            </div>
+
+            <!-- SVG Canvas Element -->
+            <svg id="flowchart-svg" width="4000" height="4000" class="block select-none">
+                <defs>
+                    <!-- Marker for Arrowhead -->
+                    <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5"
+                            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#6366f1" />
+                    </marker>
+                    <marker id="arrowhead-selected" viewBox="0 0 10 10" refX="8" refY="5"
+                            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563eb" />
+                    </marker>
+                </defs>
+
+                <!-- Dynamic Layer 1: Lines -->
+                <g id="lines-layer"></g>
+
+                <!-- Dynamic Layer 2: Shapes & Text -->
+                <g id="shapes-layer"></g>
+
+                <!-- Dynamic Layer 3: Interaction Overlay (Handles, Connection Ports) -->
+                <g id="interaction-layer"></g>
+
+                <!-- Temporary Drawing Line -->
+                <path id="temp-line" style="display: none;" stroke="#6366f1" stroke-width="2.5" stroke-dasharray="5,5" fill="none" marker-end="url(#arrowhead)" d="" />
+            </svg>
+
+            <!-- Instructions Overlay if Empty -->
+            <div id="empty-state" class="fixed top-1/2 left-[calc(50%+4rem)] -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center justify-center text-slate-400 z-0">
+                <i class="fa-solid fa-hand-pointer text-4xl mb-3 animate-bounce text-slate-300"></i>
+                <p class="text-sm font-semibold">왼쪽에서 원하는 기호를 클릭하거나 드래그해 배치해보세요</p>
+                <p class="text-xs text-slate-400 mt-1">기호를 클릭하면 글씨 내용과 크기를 자유롭게 변경할 수 있습니다</p>
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Properties & Inspector -->
+        <aside id="properties-panel" class="w-72 bg-white border-l border-slate-200 flex flex-col z-20 shadow-sm shrink-0 transition-all duration-300 ease-in-out relative mr-0">
+            
+            <!-- Toggle Panel Button -->
+            <button onclick="togglePropertiesPanel()" class="absolute -left-7 top-1/2 -translate-y-1/2 w-7 h-16 bg-white border border-slate-200 border-r-0 rounded-l-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-[-4px_0_6px_rgba(0,0,0,0.03)] cursor-pointer z-30 group">
+                <i id="panel-toggle-icon" class="fa-solid fa-chevron-right group-hover:scale-110 transition-transform"></i>
+            </button>
+
+            <!-- Panel Container -->
+            <div class="flex-1 flex flex-col w-72 overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-indigo-500"></i> 속성 설정
+                    </h2>
+                    <span id="selected-type-badge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-semibold">선택 안 됨</span>
+                </div>
+
+                <!-- Panel Content -->
+                <div id="panel-content" class="flex-1 overflow-y-auto p-4 space-y-5">
+                    <div class="text-center py-10 text-slate-400 text-xs">
+                        <i class="fa-solid fa-arrow-pointer text-2xl mb-2 text-slate-300"></i>
+                        <p>캔버스의 기호나 흐름선을 선택하면<br>상세 속성을 수정할 수 있습니다.</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- Hidden Drag Ghost Images for Native Drag & Drop -->
+    <div id="drag-ghosts" class="absolute left-[-9999px] top-0 pointer-events-none opacity-0">
+        <svg id="ghost-terminal" width="140" height="60"><rect width="140" height="60" rx="30" fill="#FFE4E8" stroke="#F43F5E" stroke-width="2.5"/></svg>
+        <svg id="ghost-process" width="150" height="70"><rect width="150" height="70" rx="8" fill="#E0F2FE" stroke="#0284C7" stroke-width="2.5"/></svg>
+        <svg id="ghost-decision" width="150" height="80"><polygon points="75,0 150,40 75,80 0,40" fill="#FEF3C7" stroke="#D97706" stroke-width="2.5"/></svg>
+        <svg id="ghost-io" width="150" height="65"><polygon points="30,0 150,0 120,65 0,65" fill="#DCFCE7" stroke="#16A34A" stroke-width="2.5"/></svg>
+        <svg id="ghost-preparation" width="150" height="65"><polygon points="27,0 123,0 150,32.5 123,65 27,65 0,32.5" fill="#F3E8FF" stroke="#9333EA" stroke-width="2.5"/></svg>
+        <svg id="ghost-connector" width="50" height="50"><circle cx="25" cy="25" r="25" fill="#FFEDD5" stroke="#EA580C" stroke-width="2.5"/></svg>
+    </div>
+
+    <script>
+
+        // Global Palette & Color System
+        const SYMBOL_DEFS = {
+            terminal: {
+                name: '터미널',
+                fill: '#FFE4E8',       // Soft Pastel Pink
+                stroke: '#F43F5E',     // Rose Border
+                textColor: '#881337',
+                defaultText: '시작 / 종료',
+                width: 140,
+                height: 60
+            },
+            process: {
+                name: '처리',
+                fill: '#E0F2FE',       // Soft Sky Blue
+                stroke: '#0284C7',     // Sky Border
+                textColor: '#075985',
+                defaultText: '처리 내용 입력',
+                width: 150,
+                height: 70
+            },
+            decision: {
+                name: '조건',
+                fill: '#FEF3C7',       // Soft Amber Yellow
+                stroke: '#D97706',     // Amber Border
+                textColor: '#78350F',
+                defaultText: '조건 판단?',
+                width: 150,
+                height: 80
+            },
+            io: {
+                name: '입출력',
+                fill: '#DCFCE7',       // Mint Pastel Green
+                stroke: '#16A34A',     // Mint Border
+                textColor: '#14532D',
+                defaultText: '데이터 입출력',
+                width: 150,
+                height: 65
+            },
+            preparation: {
+                name: '준비',
+                fill: '#F3E8FF',       // Soft Lavender Purple
+                stroke: '#9333EA',     // Purple Border
+                textColor: '#581C87',
+                defaultText: '변수 준비',
+                width: 150,
+                height: 65
+            },
+            connector: {
+                name: '연결자',
+                fill: '#FFEDD5',       // Soft Coral Peach
+                stroke: '#EA580C',     // Orange Border
+                textColor: '#7C2D12',
+                defaultText: 'A',
+                width: 50,
+                height: 50
+            }
+        };
+
+        // Application State
+        let state = {
+            shapes: [],
+            lines: [],
+            selectedId: null,
+            selectedType: null, // 'shape' or 'line'
+            mode: 'select',
+            nextId: 1,
+            
+            // Connecting line temp state
+            connectingStart: null,
+            
+            // Drag state for shapes
+            draggingShapeId: null,
+            dragOffset: { x: 0, y: 0 },
+
+            // Drag state for line bend points
+            draggingBend: null,
+
+            // History for Undo
+            history: [],
+
+            // Example Mode Status
+            isExampleMode: false,
+            savedWork: null
+        };
+
+        // DOM Element Cache
+        const svgCanvas = document.getElementById('flowchart-svg');
+        const shapesLayer = document.getElementById('shapes-layer');
+        const linesLayer = document.getElementById('lines-layer');
+        const interactionLayer = document.getElementById('interaction-layer');
+        const tempLine = document.getElementById('temp-line');
+        const panelContent = document.getElementById('panel-content');
+        const selectedBadge = document.getElementById('selected-type-badge');
+        const emptyState = document.getElementById('empty-state');
+
+        // Save History Snapshot
+        function saveSnapshot() {
+            if (state.history.length > 20) state.history.shift();
+            state.history.push(JSON.stringify({
+                shapes: state.shapes,
+                lines: state.lines,
+                nextId: state.nextId
+            }));
+        }
+
+        function undo() {
+            if (state.history.length === 0 || state.isExampleMode) return;
+            const previous = JSON.parse(state.history.pop());
+            state.shapes = previous.shapes;
+            state.lines = previous.lines;
+            state.nextId = previous.nextId;
+            state.selectedId = null;
+            state.selectedType = null;
+            render();
+            renderPropertiesPanel();
+        }
+
+        // Mode Switching
+        function setMode(mode) {
+            if (state.isExampleMode) {
+                if (state.savedWork) {
+                    state.shapes = state.savedWork.shapes;
+                    state.lines = state.savedWork.lines;
+                    state.nextId = state.savedWork.nextId;
+                    state.history = state.savedWork.history;
+                }
+                state.isExampleMode = false;
+                state.savedWork = null;
+                
+                document.getElementById('example-banner').classList.add('hidden');
+                document.getElementById('example-btn').classList.remove('bg-emerald-600', 'text-white');
+                document.getElementById('example-btn').classList.add('bg-emerald-50', 'text-emerald-700');
+                
+                state.selectedId = null;
+                state.selectedType = null;
+                
+                render();
+                renderPropertiesPanel();
+            }
+        }
+
+        // HTML5 Drag and Drop Start
+        function handleDragStart(e, symbolType) {
+            e.dataTransfer.setData('application/json', JSON.stringify({ type: symbolType }));
+            const ghost = document.getElementById('ghost-' + symbolType);
+            if (ghost) {
+                const width = parseInt(ghost.getAttribute('width')) || 50;
+                const height = parseInt(ghost.getAttribute('height')) || 50;
+                e.dataTransfer.setDragImage(ghost, width / 2, height / 2);
+            }
+        }
+
+        // Handle Palette Click to add symbol to center of visible viewport
+        function handlePaletteClick(type) {
+            const container = document.getElementById('canvas-container');
+            const scrollLeft = container.scrollLeft || 0;
+            const scrollTop = container.scrollTop || 0;
+            const viewportWidth = container.clientWidth || 800;
+            const viewportHeight = container.clientHeight || 600;
+
+            const centerX = scrollLeft + viewportWidth / 2;
+            const centerY = scrollTop + viewportHeight / 2;
+
+            addShape(type, centerX, centerY);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            saveSnapshot();
+
+            const rect = svgCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const dataRaw = e.dataTransfer.getData('application/json');
+            if (!dataRaw) return;
+
+            const data = JSON.parse(dataRaw);
+            addShape(data.type, x, y);
+        }
+
+
+        // Add Shape to Canvas
+        function addShape(type, centerX, centerY) {
+            saveSnapshot();
+            const def = SYMBOL_DEFS[type];
+            if (!def) return;
+
+            const newShape = {
+                id: 'shape_' + state.nextId++,
+                type: type,
+                x: centerX - def.width / 2,
+                y: centerY - def.height / 2,
+                width: def.width,
+                height: def.height,
+                fill: def.fill,
+                stroke: def.stroke,
+                textColor: def.textColor,
+                text: def.defaultText,
+                fontSize: 14
+            };
+
+            state.shapes.push(newShape);
+            
+            // Auto-open properties panel for newly added shape
+            if (!isPanelOpen) {
+                togglePropertiesPanel();
+            }
+            selectItem(newShape.id, 'shape');
+        }
+
+        // Get Port Absolute Coordinates for a shape
+        function getPortCoords(shape, port) {
+            switch (port) {
+                case 'top': return { x: shape.x + shape.width / 2, y: shape.y };
+                case 'right': return { x: shape.x + shape.width, y: shape.y + shape.height / 2 };
+                case 'bottom': return { x: shape.x + shape.width / 2, y: shape.y + shape.height };
+                case 'left': return { x: shape.x, y: shape.y + shape.height / 2 };
+            }
+            return { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
+        }
+
+        // Calculate Line Path String
+        function computeLinePath(line) {
+            let start, end;
+
+            if (line.fromNodeId) {
+                const shape = state.shapes.find(s => s.id === line.fromNodeId);
+                start = shape ? getPortCoords(shape, line.fromPort) : { x: line.startX || 0, y: line.startY || 0 };
+            } else {
+                start = { x: line.startX || 0, y: line.startY || 0 };
+            }
+
+            if (line.toNodeId) {
+                const shape = state.shapes.find(s => s.id === line.toNodeId);
+                end = shape ? getPortCoords(shape, line.toPort) : { x: line.endX || 0, y: line.endY || 0 };
+            } else {
+                end = { x: line.endX || 0, y: line.endY || 0 };
+            }
+
+            if (!line.isElbow) {
+                return {
+                    pathD: `M ${start.x} ${start.y} L ${end.x} ${end.y}`,
+                    start,
+                    end,
+                    points: [start, end],
+                    midPoint: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
+                };
+            }
+
+            // Elbow / Bent Line
+            let bends = line.bends || [];
+            let pathD = `M ${start.x} ${start.y}`;
+            let points = [start, ...bends, end];
+
+            for (let i = 1; i < points.length; i++) {
+                pathD += ` L ${points[i].x} ${points[i].y}`;
+            }
+
+            // Find longest segment for text placement
+            let longestSegmentLen = 0;
+            let midPoint = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+
+            if (points.length >= 2) {
+                for (let i = 0; i < points.length - 1; i++) {
+                    const p1 = points[i];
+                    const p2 = points[i+1];
+                    const len = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                    if (len > longestSegmentLen) {
+                        longestSegmentLen = len;
+                        midPoint = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+                    }
+                }
+            }
+
+            return { pathD, start, end, points, midPoint };
+        }
+
+
+        // Master Canvas Render Function
+        function render() {
+            shapesLayer.innerHTML = '';
+            linesLayer.innerHTML = '';
+            interactionLayer.innerHTML = '';
+
+            if (state.shapes.length === 0 && state.lines.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            // 1. Render Lines
+            state.lines.forEach(line => {
+                const { pathD, midPoint } = computeLinePath(line);
+                const isSelected = state.selectedId === line.id && state.selectedType === 'line';
+
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('class', 'cursor-pointer');
+                g.onclick = (e) => {
+                    e.stopPropagation();
+                    if (!isPanelOpen) togglePropertiesPanel();
+                    selectItem(line.id, 'line');
+                };
+
+                // Invisible wide stroke for easy clicking
+                const clickPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                clickPath.setAttribute('d', pathD);
+                clickPath.setAttribute('stroke', 'transparent');
+                clickPath.setAttribute('stroke-width', '16');
+                clickPath.setAttribute('fill', 'none');
+                g.appendChild(clickPath);
+
+                // Visible Path
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathD);
+                path.setAttribute('stroke', isSelected ? '#2563eb' : (line.stroke || '#6366f1'));
+                path.setAttribute('stroke-width', isSelected ? ((line.strokeWidth || 2) + 1) : (line.strokeWidth || 2));
+                path.setAttribute('fill', 'none');
+                path.setAttribute('marker-end', isSelected ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
+                if (line.dash === 'dashed') {
+                    path.setAttribute('stroke-dasharray', '6,4');
+                }
+                g.appendChild(path);
+
+                // Render Native SVG Multi-line Line Label
+                if (line.text && line.text.trim() !== '') {
+                    const rawText = line.text || '';
+                    const lines = rawText.split('\n');
+                    const fontSize = line.fontSize || 12;
+                    const lineHeight = fontSize * 1.3;
+                    const totalHeight = (lines.length - 1) * lineHeight;
+                    const startY = midPoint.y - (totalHeight / 2);
+
+                    let maxLineLen = 0;
+                    lines.forEach(l => { if (l.length > maxLineLen) maxLineLen = l.length; });
+
+                    const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    const pillWidth = Math.max(maxLineLen * fontSize * 0.65 + 16, 24);
+                    const pillHeight = Math.max(lines.length * lineHeight + 8, 20);
+
+                    textBg.setAttribute('x', midPoint.x - pillWidth / 2);
+                    textBg.setAttribute('y', midPoint.y - pillHeight / 2);
+                    textBg.setAttribute('width', pillWidth);
+                    textBg.setAttribute('height', pillHeight);
+                    textBg.setAttribute('fill', '#ffffff');
+                    textBg.setAttribute('rx', '6');
+                    textBg.setAttribute('stroke', '#cbd5e1');
+                    textBg.setAttribute('stroke-width', '1');
+
+                    g.appendChild(textBg);
+
+                    const textGroup = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    textGroup.setAttribute('fill', line.textColor || '#334155');
+                    textGroup.setAttribute('font-size', fontSize);
+                    textGroup.setAttribute('font-weight', '600');
+                    textGroup.setAttribute('text-anchor', 'middle');
+                    textGroup.setAttribute('dominant-baseline', 'central');
+                    textGroup.setAttribute('class', 'pointer-events-none select-none');
+
+                    lines.forEach((lineStr, index) => {
+                        const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+                        tspan.setAttribute('x', midPoint.x);
+                        tspan.setAttribute('y', startY + (index * lineHeight));
+                        tspan.textContent = lineStr;
+                        textGroup.appendChild(tspan);
+                    });
+
+                    g.appendChild(textGroup);
+                }
+
+                linesLayer.appendChild(g);
+
+                // Bend Handles for Elbow Lines
+                if (isSelected && line.isElbow) {
+                    const bends = line.bends || [];
+                    bends.forEach((bend, idx) => {
+                        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        circle.setAttribute('cx', bend.x);
+                        circle.setAttribute('cy', bend.y);
+                        circle.setAttribute('r', '6');
+                        circle.setAttribute('fill', '#3b82f6');
+                        circle.setAttribute('stroke', '#ffffff');
+                        circle.setAttribute('stroke-width', '2');
+                        circle.setAttribute('class', 'bend-handle shadow-md');
+
+                        circle.onmousedown = (e) => {
+                            e.stopPropagation();
+                            saveSnapshot();
+                            state.draggingBend = { lineId: line.id, bendIndex: idx };
+                        };
+
+                        interactionLayer.appendChild(circle);
+                    });
+                }
+            });
+
+            // 2. Render Shapes Layer
+            state.shapes.forEach(shape => {
+                const isSelected = state.selectedId === shape.id && state.selectedType === 'shape';
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('transform', `translate(${shape.x}, ${shape.y})`);
+                g.setAttribute('class', 'cursor-grab');
+
+                // Selection Box Indicator
+                if (isSelected) {
+                    const selBox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    selBox.setAttribute('x', -5);
+                    selBox.setAttribute('y', -5);
+                    selBox.setAttribute('width', shape.width + 10);
+                    selBox.setAttribute('height', shape.height + 10);
+                    selBox.setAttribute('rx', '10');
+                    selBox.setAttribute('fill', 'none');
+                    selBox.setAttribute('stroke', '#3b82f6');
+                    selBox.setAttribute('stroke-width', '2');
+                    selBox.setAttribute('class', 'selected-shape');
+                    g.appendChild(selBox);
+                }
+
+                let shapeEl;
+                const w = shape.width;
+                const h = shape.height;
+
+                switch (shape.type) {
+                    case 'terminal':
+                        shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        shapeEl.setAttribute('width', w);
+                        shapeEl.setAttribute('height', h);
+                        shapeEl.setAttribute('rx', h / 2);
+                        shapeEl.setAttribute('ry', h / 2);
+                        break;
+
+                    case 'process':
+                        shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        shapeEl.setAttribute('width', w);
+                        shapeEl.setAttribute('height', h);
+                        shapeEl.setAttribute('rx', 8);
+                        break;
+
+                    case 'decision':
+                        shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                        shapeEl.setAttribute('points', `${w/2},0 ${w},${h/2} ${w/2},${h} 0,${h/2}`);
+                        break;
+
+                    case 'io':
+                        shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                        shapeEl.setAttribute('points', `${w*0.2},0 ${w},0 ${w*0.8},${h} 0,${h}`);
+                        break;
+
+                    case 'preparation':
+                        shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                        shapeEl.setAttribute('points', `${w*0.18},0 ${w*0.82},0 ${w},${h/2} ${w*0.82},${h} ${w*0.18},${h} 0,${h/2}`);
+                        break;
+
+                    case 'connector':
+                        shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        shapeEl.setAttribute('cx', w / 2);
+                        shapeEl.setAttribute('cy', h / 2);
+                        shapeEl.setAttribute('r', w / 2);
+                        break;
+
+                    default:
+                        shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        shapeEl.setAttribute('width', w);
+                        shapeEl.setAttribute('height', h);
+                        shapeEl.setAttribute('rx', 6);
+                }
+
+                shapeEl.setAttribute('fill', shape.fill);
+                shapeEl.setAttribute('stroke', shape.stroke);
+                shapeEl.setAttribute('stroke-width', '2.5');
+                shapeEl.setAttribute('class', 'filter drop-shadow-sm');
+                g.appendChild(shapeEl);
+
+                // Render Native SVG Multi-line Shape Text
+                const textGroup = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                textGroup.setAttribute('fill', shape.textColor || '#1e293b');
+                textGroup.setAttribute('font-size', shape.fontSize || 14);
+                textGroup.setAttribute('font-weight', '600');
+                textGroup.setAttribute('text-anchor', 'middle');
+                textGroup.setAttribute('dominant-baseline', 'central');
+                textGroup.setAttribute('class', 'pointer-events-none select-none');
+
+                const rawText = shape.text || '';
+                const lines = rawText.split('\n');
+                const fontSize = shape.fontSize || 14;
+                const lineHeight = fontSize * 1.3;
+                const totalHeight = (lines.length - 1) * lineHeight;
+                const startY = (h / 2) - (totalHeight / 2);
+
+                lines.forEach((lineStr, index) => {
+                    const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+                    tspan.setAttribute('x', w / 2);
+                    tspan.setAttribute('y', startY + (index * lineHeight));
+                    tspan.textContent = lineStr;
+                    textGroup.appendChild(tspan);
+                });
+
+                g.appendChild(textGroup);
+
+                // Mouse Event for Selecting & Dragging Node
+                g.onmousedown = (e) => {
+                    e.stopPropagation();
+                    saveSnapshot();
+                    if (!isPanelOpen) togglePropertiesPanel();
+                    selectItem(shape.id, 'shape');
+
+                    const rect = svgCanvas.getBoundingClientRect();
+                    state.draggingShapeId = shape.id;
+                    state.dragOffset = {
+                        x: (e.clientX - rect.left) - shape.x,
+                        y: (e.clientY - rect.top) - shape.y
+                    };
+                };
+
+                g.ondblclick = (e) => {
+                    e.stopPropagation();
+                    promptTextEdit(shape);
+                };
+
+                shapesLayer.appendChild(g);
+
+                // 3. Connection Port Points
+                if (isSelected) {
+                    const ports = ['top', 'right', 'bottom', 'left'];
+                    ports.forEach(port => {
+                        const coords = getPortCoords(shape, port);
+
+                        const portCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        portCircle.setAttribute('cx', coords.x);
+                        portCircle.setAttribute('cy', coords.y);
+                        portCircle.setAttribute('r', '5');
+                        portCircle.setAttribute('fill', '#60a5fa');
+                        portCircle.setAttribute('stroke', '#ffffff');
+                        portCircle.setAttribute('stroke-width', '2');
+                        portCircle.setAttribute('class', 'port-point shadow-sm');
+
+                        portCircle.onmousedown = (e) => {
+                            e.stopPropagation();
+                            saveSnapshot();
+                            state.connectingStart = { shapeId: shape.id, port: port, x: coords.x, y: coords.y };
+                        };
+
+                        interactionLayer.appendChild(portCircle);
+                    });
+                }
+            });
+        }
+
+
+        // Mouse Dragging logic
+        svgCanvas.onmousemove = (e) => {
+            const rect = svgCanvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // Dragging Shape Node
+            if (state.draggingShapeId) {
+                const shape = state.shapes.find(s => s.id === state.draggingShapeId);
+                if (shape) {
+                    shape.x = mouseX - state.dragOffset.x;
+                    shape.y = mouseY - state.dragOffset.y;
+                    render();
+                }
+                return;
+            }
+
+            // Dragging Line Bend Point
+            if (state.draggingBend) {
+                const { lineId, bendIndex } = state.draggingBend;
+                const line = state.lines.find(l => l.id === lineId);
+                if (line && line.bends && line.bends[bendIndex]) {
+                    line.bends[bendIndex].x = mouseX;
+                    line.bends[bendIndex].y = mouseY;
+                    render();
+                }
+                return;
+            }
+
+            // Connecting Line Preview
+            if (state.connectingStart) {
+                let previewX = mouseX;
+                let previewY = mouseY;
+                const snapThreshold = 25;
+
+                state.shapes.forEach(s => {
+                    if (s.id !== state.connectingStart.shapeId) {
+                        ['top', 'right', 'bottom', 'left'].forEach(port => {
+                            const coords = getPortCoords(s, port);
+                            if (Math.hypot(coords.x - mouseX, coords.y - mouseY) < snapThreshold) {
+                                previewX = coords.x;
+                                previewY = coords.y;
+                            }
+                        });
+                    }
+                });
+
+                tempLine.style.display = 'block';
+                tempLine.setAttribute('d', `M ${state.connectingStart.x} ${state.connectingStart.y} L ${previewX} ${previewY}`);
+            }
+        };
+
+        window.onmouseup = (e) => {
+            if (state.draggingShapeId) {
+                state.draggingShapeId = null;
+            }
+
+            if (state.draggingBend) {
+                state.draggingBend = null;
+            }
+
+            if (state.connectingStart) {
+                tempLine.style.display = 'none';
+                tempLine.setAttribute('d', '');
+                const rect = svgCanvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                let closestShape = null;
+                let closestPort = null;
+                let minDistance = 25;
+
+                state.shapes.forEach(s => {
+                    if (s.id !== state.connectingStart.shapeId) {
+                        ['top', 'right', 'bottom', 'left'].forEach(port => {
+                            const coords = getPortCoords(s, port);
+                            const dist = Math.hypot(coords.x - mouseX, coords.y - mouseY);
+                            if (dist < minDistance) {
+                                minDistance = dist;
+                                closestShape = s;
+                                closestPort = port;
+                            }
+                        });
+                    }
+                });
+
+                if (!closestShape) {
+                    closestShape = state.shapes.find(s => {
+                        return mouseX >= s.x && mouseX <= s.x + s.width &&
+                               mouseY >= s.y && mouseY <= s.y + s.height &&
+                               s.id !== state.connectingStart.shapeId;
+                    });
+
+                    if (closestShape) {
+                        let minBoxDist = Infinity;
+                        ['top', 'right', 'bottom', 'left'].forEach(port => {
+                            const coords = getPortCoords(closestShape, port);
+                            const dist = Math.hypot(coords.x - mouseX, coords.y - mouseY);
+                            if (dist < minBoxDist) {
+                                minBoxDist = dist;
+                                closestPort = port;
+                            }
+                        });
+                    }
+                }
+
+                if (closestShape && closestPort) {
+                    const newLine = {
+                        id: 'line_' + state.nextId++,
+                        fromNodeId: state.connectingStart.shapeId,
+                        fromPort: state.connectingStart.port,
+                        toNodeId: closestShape.id,
+                        toPort: closestPort,
+                        isElbow: false,
+                        bends: [], 
+                        text: '',
+                        fontSize: 12,
+                        stroke: '#6366f1',
+                        strokeWidth: 2,
+                        dash: 'solid'
+                    };
+
+                    state.lines.push(newLine);
+                    selectItem(newLine.id, 'line');
+                }
+
+                state.connectingStart = null;
+                render();
+            }
+        };
+
+        svgCanvas.onclick = (e) => {
+            if (e.target === svgCanvas) {
+                state.selectedId = null;
+                state.selectedType = null;
+                render();
+                renderPropertiesPanel();
+            }
+        };
+
+        function selectItem(id, type) {
+            state.selectedId = id;
+            state.selectedType = type;
+            render();
+            renderPropertiesPanel();
+        }
+
+        function promptTextEdit(shape) {
+            const newText = prompt('기호에 표시할 글씨를 입력하세요:', shape.text);
+            if (newText !== null) {
+                saveSnapshot();
+                shape.text = newText;
+                render();
+                renderPropertiesPanel();
+            }
+        }
+
+
+        function renderPropertiesPanel() {
+            if (!state.selectedId) {
+                selectedBadge.innerText = '선택 안 됨';
+                selectedBadge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-semibold';
+                panelContent.innerHTML = `
+                    <div class="text-center py-12 text-slate-400 text-xs">
+                        <i class="fa-solid fa-arrow-pointer text-3xl mb-3 text-slate-300 block"></i>
+                        <p class="font-medium">기호나 흐름선을 선택하여<br>속성을 편집해보세요.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (state.selectedType === 'shape') {
+                const shape = state.shapes.find(s => s.id === state.selectedId);
+                if (!shape) return;
+
+                const def = SYMBOL_DEFS[shape.type];
+                selectedBadge.innerText = def ? def.name : '기호';
+                selectedBadge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 font-semibold';
+
+                panelContent.innerHTML = `
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-font text-indigo-500"></i> 글씨 내용 입력
+                        </label>
+                        <textarea id="prop-text" rows="3" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none resize-none font-medium text-slate-800">${shape.text}</textarea>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <i class="fa-solid fa-text-height text-indigo-500"></i> 글씨 크기
+                            </label>
+                            <span id="font-size-val" class="text-xs font-semibold text-indigo-600">${shape.fontSize || 14}px</span>
+                        </div>
+                        <input id="prop-fontsize" type="range" min="10" max="28" value="${shape.fontSize || 14}" class="w-full accent-indigo-600 cursor-pointer">
+                    </div>
+
+                    <div class="border-t border-slate-100 pt-4">
+                        <button onclick="deleteSelectedItem()" class="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold rounded-lg transition flex items-center justify-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-trash"></i> 이 기호 삭제하기
+                        </button>
+                    </div>
+                `;
+
+                document.getElementById('prop-text').oninput = (e) => {
+                    shape.text = e.target.value;
+                    render();
+                };
+
+                document.getElementById('prop-fontsize').oninput = (e) => {
+                    shape.fontSize = parseInt(e.target.value);
+                    document.getElementById('font-size-val').innerText = `${shape.fontSize}px`;
+                    render();
+                };
+            }
+
+            else if (state.selectedType === 'line') {
+                const line = state.lines.find(l => l.id === state.selectedId);
+                if (!line) return;
+
+                selectedBadge.innerText = '흐름선';
+                selectedBadge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 font-semibold';
+
+                panelContent.innerHTML = `
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-tag text-indigo-500"></i> 흐름선 텍스트 (예: Yes/No)
+                        </label>
+                        <input id="prop-line-text" type="text" value="${line.text || ''}" placeholder="텍스트 입력 (선택)" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none font-medium">
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-slate-700 block">선 스타일 (직선 / 꺾은선)</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="btn-straight" onclick="setLineType(false)" class="py-2 text-xs font-bold rounded-lg border transition cursor-pointer ${!line.isElbow ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200'}">
+                                <i class="fa-solid fa-slash mr-1"></i> 직선
+                            </button>
+                            <button id="btn-elbow" onclick="setLineType(true)" class="py-2 text-xs font-bold rounded-lg border transition cursor-pointer ${line.isElbow ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200'}">
+                                <i class="fa-solid fa-route mr-1"></i> 꺾은선
+                            </button>
+                        </div>
+                    </div>
+
+                    ${line.isElbow ? `
+                        <button onclick="addBendPoint()" class="w-full py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-plus-circle"></i> 꺾임 조절점 추가하기
+                        </button>
+                    ` : ''}
+
+                    <div class="space-y-3 pt-2">
+                        <div>
+                            <span class="text-[11px] text-slate-500 block mb-1">선 색상</span>
+                            <input id="prop-line-stroke" type="color" value="${line.stroke || '#6366f1'}" class="w-full h-8 rounded-lg cursor-pointer border border-slate-200 p-0.5">
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-100 pt-4">
+                        <button onclick="deleteSelectedItem()" class="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold rounded-lg transition flex items-center justify-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-trash"></i> 이 흐름선 삭제하기
+                        </button>
+                    </div>
+                `;
+
+                document.getElementById('prop-line-text').oninput = (e) => {
+                    line.text = e.target.value;
+                    render();
+                };
+
+                document.getElementById('prop-line-stroke').onchange = (e) => {
+                    saveSnapshot();
+                    line.stroke = e.target.value;
+                    render();
+                };
+            }
+        }
+
+        function setLineType(isElbow) {
+            const line = state.lines.find(l => l.id === state.selectedId);
+            if (!line) return;
+            saveSnapshot();
+            line.isElbow = isElbow;
+
+            if (isElbow && (!line.bends || line.bends.length === 0)) {
+                const { start, end } = computeLinePath(line);
+                const fromPort = line.fromPort;
+                const toPort = line.toPort;
+
+                if ((fromPort === 'top' || fromPort === 'bottom') && (toPort === 'top' || toPort === 'bottom')) {
+                    const midY = (start.y + end.y) / 2;
+                    line.bends = [
+                        { x: start.x, y: midY },
+                        { x: end.x, y: midY }
+                    ];
+                } else if ((fromPort === 'left' || fromPort === 'right') && (toPort === 'left' || toPort === 'right')) {
+                    const midX = (start.x + end.x) / 2;
+                    line.bends = [
+                        { x: midX, y: start.y },
+                        { x: midX, y: end.y }
+                    ];
+                } else if (fromPort === 'top' || fromPort === 'bottom') {
+                    line.bends = [
+                        { x: start.x, y: end.y }
+                    ];
+                } else {
+                    line.bends = [
+                        { x: end.x, y: start.y }
+                    ];
+                }
+            }
+
+            render();
+            renderPropertiesPanel();
+        }
+
+        function addBendPoint() {
+            const line = state.lines.find(l => l.id === state.selectedId);
+            if (!line) return;
+            saveSnapshot();
+            
+            const { start, end } = computeLinePath(line);
+            if (!line.bends) line.bends = [];
+            line.bends.push({
+                x: (start.x + end.x) / 2 + (Math.random() * 20 - 10),
+                y: (start.y + end.y) / 2 + (Math.random() * 20 - 10)
+            });
+            render();
+        }
+
+        function deleteSelectedItem() {
+            if (!state.selectedId) return;
+            saveSnapshot();
+
+            if (state.selectedType === 'shape') {
+                state.shapes = state.shapes.filter(s => s.id !== state.selectedId);
+                state.lines = state.lines.filter(l => l.fromNodeId !== state.selectedId && l.toNodeId !== state.selectedId);
+            } else if (state.selectedType === 'line') {
+                state.lines = state.lines.filter(l => l.id !== state.selectedId);
+            }
+
+            state.selectedId = null;
+            state.selectedType = null;
+            render();
+            renderPropertiesPanel();
+        }
+
+        function toggleExportMenu() {
+            const menu = document.getElementById('export-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        let isPanelOpen = true;
+        function togglePropertiesPanel() {
+            isPanelOpen = !isPanelOpen;
+            const panel = document.getElementById('properties-panel');
+            const icon = document.getElementById('panel-toggle-icon');
+            
+            if (isPanelOpen) {
+                panel.classList.remove('-mr-72');
+                icon.className = 'fa-solid fa-chevron-right group-hover:scale-110 transition-transform';
+            } else {
+                panel.classList.add('-mr-72');
+                icon.className = 'fa-solid fa-chevron-left group-hover:scale-110 transition-transform';
+            }
+        }
+
+        window.addEventListener('click', (e) => {
+            const btn = document.getElementById('export-dropdown-btn');
+            const menu = document.getElementById('export-menu');
+            if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+
+
+        // High Quality Reliable Export (PNG / JPG / PDF)
+        async function exportCanvas(format) {
+            document.getElementById('export-menu').classList.add('hidden');
+
+            const savedSelectedId = state.selectedId;
+            const savedSelectedType = state.selectedType;
+            state.selectedId = null;
+            state.selectedType = null;
+            render();
+
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+            state.shapes.forEach(s => {
+                minX = Math.min(minX, s.x);
+                minY = Math.min(minY, s.y);
+                maxX = Math.max(maxX, s.x + s.width);
+                maxY = Math.max(maxY, s.y + s.height);
+            });
+
+            state.lines.forEach(l => {
+                const { start, end, points } = computeLinePath(l);
+                if (start) { minX = Math.min(minX, start.x); minY = Math.min(minY, start.y); maxX = Math.max(maxX, start.x); maxY = Math.max(maxY, start.y); }
+                if (end) { minX = Math.min(minX, end.x); minY = Math.min(minY, end.y); maxX = Math.max(maxX, end.x); maxY = Math.max(maxY, end.y); }
+                if (points) {
+                    points.forEach(p => {
+                        minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+                        maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+                    });
+                }
+            });
+
+            if (minX === Infinity) {
+                minX = 100; minY = 100; maxX = 900; maxY = 700;
+            }
+
+            const padding = 50;
+            const contentX = Math.floor(minX - padding);
+            const contentY = Math.floor(minY - padding);
+            const width = Math.ceil((maxX - minX) + padding * 2);
+            const height = Math.ceil((maxY - minY) + padding * 2);
+
+            const svgClone = svgCanvas.cloneNode(true);
+            
+            // Clean up temporary elements from clone so they don't appear in export
+            const cloneInteraction = svgClone.querySelector('#interaction-layer');
+            if (cloneInteraction) cloneInteraction.remove();
+            const cloneTempLine = svgClone.querySelector('#temp-line');
+            if (cloneTempLine) cloneTempLine.remove();
+
+            svgClone.setAttribute('width', width);
+            svgClone.setAttribute('height', height);
+            svgClone.setAttribute('viewBox', `${contentX} ${contentY} ${width} ${height}`);
+
+            const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bgRect.setAttribute('x', contentX);
+            bgRect.setAttribute('y', contentY);
+            bgRect.setAttribute('width', width);
+            bgRect.setAttribute('height', height);
+            bgRect.setAttribute('fill', '#f8fafc');
+            svgClone.insertBefore(bgRect, svgClone.firstChild);
+
+            const serializer = new XMLSerializer();
+            let svgString = serializer.serializeToString(svgClone);
+
+            if (!svgString.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+                svgString = svgString.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+            }
+
+            const img = new Image();
+            const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+
+            img.onload = () => {
+                const scale = 2; // high definition multiplier
+                const canvas = document.createElement('canvas');
+                canvas.width = width * scale;
+                canvas.height = height * scale;
+                const ctx = canvas.getContext('2d');
+                ctx.scale(scale, scale);
+
+                ctx.drawImage(img, 0, 0);
+                URL.revokeObjectURL(url);
+
+                if (format === 'png' || format === 'jpg') {
+                    const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+                    if (format === 'jpg') {
+                        ctx.globalCompositeOperation = 'destination-over';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, width, height);
+                    }
+                    const imgURI = canvas.toDataURL(mimeType, 0.95);
+                    const link = document.createElement('a');
+                    link.download = `순서도_${new Date().toISOString().slice(0, 10)}.${format}`;
+                    link.href = imgURI;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } else if (format === 'pdf') {
+                    const { jsPDF } = window.jspdf;
+                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                    const pdf = new jsPDF({
+                        orientation: width > height ? 'landscape' : 'portrait',
+                        unit: 'px',
+                        format: [width, height]
+                    });
+                    pdf.addImage(imgData, 'JPEG', 0, 0, width, height);
+                    pdf.save(`순서도_${new Date().toISOString().slice(0, 10)}.pdf`);
+                }
+
+                state.selectedId = savedSelectedId;
+                state.selectedType = savedSelectedType;
+                render();
+                if (state.selectedId) renderPropertiesPanel();
+            };
+
+            img.onerror = (e) => {
+                console.error('Export render error:', e);
+                state.selectedId = savedSelectedId;
+                state.selectedType = savedSelectedType;
+                render();
+                alert('이미지 생성 중 오류가 발생했습니다.');
+            };
+
+            img.src = url;
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                deleteSelectedItem();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                undo();
+            }
+        });
+
+
+        // Load Medical Flowchart Example
+        function loadMedicalExample() {
+            if (state.isExampleMode) return;
+            
+            saveSnapshot();
+
+            state.savedWork = {
+                shapes: JSON.parse(JSON.stringify(state.shapes)),
+                lines: JSON.parse(JSON.stringify(state.lines)),
+                nextId: state.nextId,
+                history: [...state.history]
+            };
+            state.isExampleMode = true;
+
+            const banner = document.getElementById('example-banner');
+            if (banner) banner.classList.remove('hidden');
+
+            const btn = document.getElementById('example-btn');
+            if (btn) {
+                btn.classList.remove('bg-emerald-50', 'text-emerald-700');
+                btn.classList.add('bg-emerald-600', 'text-white');
+            }
+
+            state.shapes = [];
+            state.lines = [];
+            state.nextId = 1;
+            state.history = [];
+
+            const centerX = 500;
+
+            addShape('terminal', centerX, 100); 
+            state.shapes[0].text = '환자 병원 도착\n(접수)';
+
+            addShape('preparation', centerX, 220); 
+            state.shapes[1].text = '기초 문진표 작성 및\n과거 병력 확인';
+            state.shapes[1].width = 160;
+
+            addShape('io', centerX, 340); 
+            state.shapes[2].text = '활력 징후 측정\n(혈압, 체온 등)';
+            state.shapes[2].width = 160;
+
+            addShape('decision', centerX, 480); 
+            state.shapes[3].text = '응급 상황인가?';
+            state.shapes[3].width = 150;
+
+            addShape('process', centerX - 250, 480);
+            state.shapes[4].text = '응급실(ER)\n즉시 이송 및 처치';
+            state.shapes[4].width = 150;
+
+            addShape('process', centerX, 640); 
+            state.shapes[5].text = '전문의 진료 및\n증상 청취';
+            state.shapes[5].width = 150;
+
+            addShape('decision', centerX, 780); 
+            state.shapes[6].text = '정밀 검사가\n필요한가?';
+            state.shapes[6].width = 150;
+
+            addShape('process', centerX + 250, 780);
+            state.shapes[7].text = '혈액/영상 검사\n(X-ray, MRI 등)';
+            state.shapes[7].width = 150;
+
+            addShape('process', centerX, 940); 
+            state.shapes[8].text = '최종 진단 및\n치료 계획 수립';
+            state.shapes[8].width = 150;
+
+            addShape('process', centerX, 1080);
+            state.shapes[9].text = '치료 진행\n(투약/입원/시술)';
+            state.shapes[9].width = 150;
+
+            addShape('decision', centerX, 1220);
+            state.shapes[10].text = '증상이\n호전되었는가?';
+            state.shapes[10].width = 150;
+
+            addShape('io', centerX, 1360);
+            state.shapes[11].text = '수납 및 처방전 발급';
+            state.shapes[11].width = 160;
+
+            addShape('terminal', centerX, 1500);
+            state.shapes[12].text = '귀가\n(진료 종료)';
+
+            // Connect Lines
+            createExampleLine('shape_1', 'bottom', 'shape_2', 'top', '');
+            createExampleLine('shape_2', 'bottom', 'shape_3', 'top', '');
+            createExampleLine('shape_3', 'bottom', 'shape_4', 'top', '');
+            
+            // 응급 여부 분기
+            createExampleLine('shape_4', 'left', 'shape_5', 'right', '예 (Yes)');
+            createExampleLine('shape_5', 'bottom', 'shape_13', 'left', '처치 완료', [{x: centerX - 250, y: 1500}]);
+            createExampleLine('shape_4', 'bottom', 'shape_6', 'top', '아니오 (No)');
+            
+            // 검사 여부 분기
+            createExampleLine('shape_6', 'bottom', 'shape_7', 'top', '');
+            createExampleLine('shape_7', 'right', 'shape_8', 'left', '예 (필요함)');
+            createExampleLine('shape_8', 'bottom', 'shape_9', 'right', '검사 결과', [{x: centerX + 250, y: 940}]);
+            createExampleLine('shape_7', 'bottom', 'shape_9', 'top', '아니오 (No)');
+            
+            // 진단 및 치료
+            createExampleLine('shape_9', 'bottom', 'shape_10', 'top', '');
+            createExampleLine('shape_10', 'bottom', 'shape_11', 'top', '');
+            
+            // [반복 구조] 증상 호전 여부 루프 (Loop)
+            createExampleLine('shape_11', 'left', 'shape_6', 'left', '아니오 (재진료)', [{x: centerX - 130, y: 1220}, {x: centerX - 130, y: 640}]);
+            
+            // 귀가
+            createExampleLine('shape_11', 'bottom', 'shape_12', 'top', '예 (호전됨)');
+            createExampleLine('shape_12', 'bottom', 'shape_13', 'top', '');
+
+            state.selectedId = null;
+            state.selectedType = null;
+            render();
+            renderPropertiesPanel();
+            
+            const container = document.getElementById('canvas-container');
+            if (container) container.scrollTo({ top: 0, left: 100, behavior: 'smooth' });
+        }
+
+        function createExampleLine(fromId, fromPort, toId, toPort, text, bends = null) {
+            const fromShape = state.shapes.find(s => s.id === fromId);
+            const toShape = state.shapes.find(s => s.id === toId);
+            if(!fromShape || !toShape) return;
+
+            state.lines.push({
+                id: 'line_' + state.nextId++,
+                fromNodeId: fromId,
+                fromPort: fromPort,
+                toNodeId: toId,
+                toPort: toPort,
+                isElbow: bends ? true : false,
+                bends: bends || [],
+                text: text,
+                fontSize: 12,
+                stroke: '#6366f1',
+                strokeWidth: 2,
+                dash: 'solid'
+            });
+        }
+
+        window.onload = function() {
+            state.selectedId = null;
+            state.selectedType = null;
+            render();
+            renderPropertiesPanel();
+        };
+    </script>
+</body>
+</html>
