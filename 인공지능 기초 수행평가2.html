@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>인공지능 기초 수행평가2</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans KR", sans-serif;
+            background-color: #f3f4f6;
+            color: #1e293b;
+            line-height: 1.5;
+            padding-bottom: 3rem;
+        }
+
+        /* Container Helpers */
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        /* Header Bar */
+        header {
+            background-color: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            padding: 1.25rem 0;
+        }
+        .header-content {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+        .header-title-box {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .header-icon-bg {
+            background-color: #4f46e5;
+            color: #ffffff;
+            padding: 0.875rem;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+        }
+        .header-title {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.025em;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.625rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            border: 1px solid transparent;
+            text-decoration: none;
+        }
+        .btn-teacher {
+            background-color: #f1f5f9;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+        .btn-teacher:hover {
+            background-color: #fef3c7;
+            color: #92400e;
+            border-color: #fde68a;
+        }
+        .btn-teacher.active {
+            background-color: #f59e0b;
+            color: #ffffff;
+            border-color: #d97706;
+        }
+        .btn-teacher.active:hover {
+            background-color: #d97706;
+        }
+
+        .btn-submit {
+            background-color: #4f46e5;
+            color: #ffffff;
+            font-size: 1.15rem;
+            padding: 1rem 2.25rem;
+            min-width: 300px;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+        }
+        .btn-submit:hover {
+            background-color: #4338ca;
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+        }
+
+        /* Cards */
+        .card {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: border-color 0.2s;
+        }
+        .card:hover {
+            border-color: #cbd5e1;
+        }
+
+        label {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 0.5rem;
+        }
+        .required {
+            color: #f43f5e;
+        }
+        input[type="text"], input[type="number"], textarea {
+            width: 100%;
+            padding: 0.875rem 1.125rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.75rem;
+            font-size: 1.1rem;
+            font-family: inherit;
+            color: #1e293b;
+            outline: none;
+            transition: all 0.2s;
+            background-color: #ffffff;
+        }
+        input[type="text"]:focus, textarea:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        input[type="number"]:focus {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+        }
+        textarea {
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        .student-info-grid {
+            display: grid;
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+            gap: 1.5rem;
+            flex: 1;
+        }
+        @media (min-width: 640px) {
+            .student-info-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        .student-header-flex {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        @media (min-width: 768px) {
+            .student-header-flex {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+        .score-box {
+            background-color: #fffbeb;
+            border: 2px solid #fde68a;
+            border-radius: 1rem;
+            padding: 1.25rem 1.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            min-width: 300px;
+        }
+        .score-num-active {
+            color: #4f46e5;
+            font-weight: 900;
+        }
+        .score-num-inactive {
+            color: #94a3b8;
+            font-weight: 900;
+        }
+
+        /* Question Cards */
+        .question-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+        .badge-q {
+            background-color: #e0e7ff;
+            color: #3730a3;
+            font-weight: 800;
+            padding: 0.5rem 1rem;
+            border-radius: 0.625rem;
+            font-size: 1.25rem;
+        }
+        .badge-points {
+            background-color: #f1f5f9;
+            color: #334155;
+            font-size: 0.95rem;
+            font-weight: 700;
+            padding: 0.5rem 0.875rem;
+            border-radius: 9999px;
+            border: 1px solid #e2e8f0;
+        }
+        .question-body {
+            background-color: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 0.875rem;
+            border: 1px solid #f1f5f9;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        /* Question Layout Grid */
+        .q-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+        @media (min-width: 1024px) {
+            .q-grid.teacher-active {
+                grid-template-columns: 2fr 1fr;
+            }
+        }
+
+        .teacher-box {
+            background-color: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+        .teacher-box-title {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #78350f;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #fef3c7;
+            padding-bottom: 0.75rem;
+        }
+
+        .action-bar {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+            padding: 1.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 3rem;
+        }
+        @media (min-width: 640px) {
+            .action-bar {
+                flex-direction: row;
+            }
+        }
+        .action-notice {
+            font-size: 1.05rem;
+            font-weight: 500;
+            color: #475569;
+        }
+        .action-notice strong {
+            color: #4f46e5;
+            font-weight: 700;
+        }
+
+        .char-counter {
+            display: flex;
+            justify-content: flex-end;
+            font-size: 0.95rem;
+            color: #64748b;
+            margin-top: 0.5rem;
+        }
+        .char-counter strong {
+            color: #334155;
+            font-weight: 700;
+        }
+
+        #toast-container {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 0.625rem;
+            pointer-events: none;
+        }
+        .toast {
+            pointer-events: auto;
+            padding: 1rem 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.3s ease;
+            transform: translateY(0.5rem);
+            opacity: 0;
+            color: #ffffff;
+        }
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .toast-success { background-color: #059669; }
+        .toast-error { background-color: #e11d48; }
+        .toast-info { background-color: #d97706; }
+        .toast-default { background-color: #1e293b; }
+
+        .svg-icon {
+            display: inline-block;
+            width: 1.35rem;
+            height: 1.35rem;
+            fill: currentColor;
+            vertical-align: middle;
+        }
+        .svg-icon-lg {
+            width: 2rem;
+            height: 2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container header-content">
+            <div class="header-title-box">
+                <div class="header-icon-bg">
+                    <svg class="svg-icon svg-icon-lg" viewBox="0 0 24 24">
+                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="header-title">인공지능 기초 수행평가2</h1>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <button id="btn-teacher-mode" onclick="toggleTeacherMode()" class="btn btn-teacher">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                    <span id="teacher-btn-text">교사용 채점모드</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="toast-container"></div>
+
+    <main class="container" style="margin-top: 2rem;">
+
+        <!-- Student Identification Card -->
+        <div class="card">
+            <div class="student-header-flex">
+                <div class="student-info-grid">
+                    <div>
+                        <label for="student-id">학번 <span class="required">*</span></label>
+                        <input type="text" id="student-id" placeholder="예: 10101" oninput="autoSaveState()">
+                    </div>
+                    <div>
+                        <label for="student-name">이름 <span class="required">*</span></label>
+                        <input type="text" id="student-name" placeholder="예: 홍길동" oninput="autoSaveState()">
+                    </div>
+                </div>
+
+                <div id="score-summary-box" class="score-box hidden">
+                    <div style="text-align: left;">
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #78350f; text-transform: uppercase;">총점 (만점: 35점)</div>
+                        <div style="font-size: 0.8rem; color: #b45309;">기본점수 14점 포함</div>
+                    </div>
+                    <div style="font-size: 2.5rem;" id="total-score-display" class="score-num-inactive">
+                        <span id="total-score-num">14</span> <span style="font-size: 1.35rem; font-weight: 400; color: #64748b;">/ 35</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; font-size: 0.95rem; color: #64748b; display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center;">
+                <span style="display: flex; align-items: center; gap: 0.375rem;">
+                    <svg class="svg-icon" style="color: #4f46e5;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    작성 완료 후 하단의 [답안 저장 및 제출용 파일 생성] 버튼을 클릭하여 바탕화면에 저장하세요.
+                </span>
+                <span style="display: flex; align-items: center; gap: 0.375rem;">
+                    <svg class="svg-icon" style="color: #d97706;" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                    저장 파일명: <strong id="expected-filename" style="color: #0f172a; font-weight: 700;">학번_이름_인공지능기초_수행평가2.html</strong>
+                </span>
+            </div>
+        </div>
+
+        <!-- Question 1 -->
+        <div class="card">
+            <div class="question-header">
+                <span class="badge-q">문제 1</span>
+                <span class="badge-points">배점 6점</span>
+            </div>
+            <div class="question-body">
+                인공지능 윤리의 <strong style="color: #312e81;">중요성에 관해 본인의 생각을 서술</strong>하시오.
+                <div style="margin-top: 0.5rem; font-size: 0.95rem; color: #dc2626; font-weight: 700;">※ 작성 안내: 공백 포함 300자 이상 작성</div>
+            </div>
+
+            <div id="q1-grid" class="q-grid">
+                <div>
+                    <label for="q1-answer">학생 답안 작성란</label>
+                    <textarea id="q1-answer" rows="6" oninput="updateCharCount(1); autoSaveState()"></textarea>
+                    <div class="char-counter">
+                        글자 수: <strong id="q1-char-count" style="margin-left: 0.25rem;">0</strong> 자
+                    </div>
+                </div>
+
+                <div id="q1-teacher-container" class="teacher-box hidden">
+                    <div class="teacher-box-title">
+                        <span>교사 채점 (문제 1)</span>
+                        <span style="font-size: 0.8rem; font-weight: 600;">최대 6점</span>
+                    </div>
+                    <div>
+                        <label for="q1-score" style="font-size: 0.8rem; color: #78350f;">획득 점수</label>
+                        <input type="number" id="q1-score" min="0" max="6" step="0.5" placeholder="0" oninput="calculateTotalScore(); autoSaveState()">
+                    </div>
+                    <div>
+                        <label for="q1-feedback" style="font-size: 0.8rem; color: #78350f;">피드백 / 총평</label>
+                        <textarea id="q1-feedback" rows="3" placeholder="피드백을 입력하세요..." oninput="autoSaveState()"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question 2 -->
+        <div class="card">
+            <div class="question-header">
+                <span class="badge-q">문제 2</span>
+                <span class="badge-points">배점 6점</span>
+            </div>
+            <div class="question-body">
+                인공지능 윤리의 쟁점 4가지 중 <strong style="color: #312e81;">2가지를 선택하여 관련 내용을 서술하고 본인의 생각을 쓰시오.</strong><br>
+                <span style="font-size: 1.05rem; color: #475569; font-weight: 500;">(선택할 쟁점 범위: 교통, 국방, 보건의료, 개인 정보)</span>
+                <div style="margin-top: 0.5rem; font-size: 0.95rem; color: #dc2626; font-weight: 700;">※ 작성 안내: 공백 포함 300자 이상 작성</div>
+            </div>
+
+            <div id="q2-grid" class="q-grid">
+                <div>
+                    <label for="q2-answer">학생 답안 작성란</label>
+                    <textarea id="q2-answer" rows="6" oninput="updateCharCount(2); autoSaveState()"></textarea>
+                    <div class="char-counter">
+                        글자 수: <strong id="q2-char-count" style="margin-left: 0.25rem;">0</strong> 자
+                    </div>
+                </div>
+
+                <div id="q2-teacher-container" class="teacher-box hidden">
+                    <div class="teacher-box-title">
+                        <span>교사 채점 (문제 2)</span>
+                        <span style="font-size: 0.8rem; font-weight: 600;">최대 6점</span>
+                    </div>
+                    <div>
+                        <label for="q2-score" style="font-size: 0.8rem; color: #78350f;">획득 점수</label>
+                        <input type="number" id="q2-score" min="0" max="6" step="0.5" placeholder="0" oninput="calculateTotalScore(); autoSaveState()">
+                    </div>
+                    <div>
+                        <label for="q2-feedback" style="font-size: 0.8rem; color: #78350f;">피드백 / 총평</label>
+                        <textarea id="q2-feedback" rows="3" placeholder="피드백을 입력하세요..." oninput="autoSaveState()"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question 3 -->
+        <div class="card">
+            <div class="question-header">
+                <span class="badge-q">문제 3</span>
+                <span class="badge-points">배점 9점</span>
+            </div>
+            <div class="question-body">
+                다음 상황을 보고, <strong style="color: #312e81;">역할 중 하나를 선택해 그 역할을 대변하는 입장과 근거 2개를 논술</strong>하시오.<br>
+                <div style="margin-top: 0.75rem; padding: 1rem; background-color: #ffffff; border-radius: 0.625rem; border: 1px solid #cbd5e1; font-size: 1.05rem; font-weight: 500; color: #334155; line-height: 1.7;">
+                    <div style="margin-bottom: 0.5rem;"><strong style="color: #0f172a;">상황:</strong> 운전자는 자율주행 기능을 켜고 이동 중이었으며, 차량은 제한속도를 지키고 있었습니다. 그런데 갑자기 도로에 공사 자재가 떨어졌고, 동시에 맞은편에서 보행자가 횡단보도로 진입했습니다.</div>
+                    <div><strong style="color: #0f172a;">역할:</strong> 자동차 제조사, 소프트웨어 개발사, 차량 탑승자, 보행자/시민대표, 정부/윤리위원회</div>
+                </div>
+                <div style="margin-top: 0.75rem; font-size: 0.95rem; color: #dc2626; font-weight: 700;">※ 작성 안내: 공백 포함 300자 이상 작성</div>
+            </div>
+
+            <div id="q3-grid" class="q-grid">
+                <div>
+                    <label for="q3-answer">학생 답안 작성란</label>
+                    <textarea id="q3-answer" rows="6" oninput="updateCharCount(3); autoSaveState()">선택한 역할: 
+입장 및 근거 두 가지: </textarea>
+                    <div class="char-counter">
+                        글자 수: <strong id="q3-char-count" style="margin-left: 0.25rem;">0</strong> 자
+                    </div>
+                </div>
+
+                <div id="q3-teacher-container" class="teacher-box hidden">
+                    <div class="teacher-box-title">
+                        <span>교사 채점 (문제 3)</span>
+                        <span style="font-size: 0.8rem; font-weight: 600;">최대 9점</span>
+                    </div>
+                    <div>
+                        <label for="q3-score" style="font-size: 0.8rem; color: #78350f;">획득 점수</label>
+                        <input type="number" id="q3-score" min="0" max="9" step="0.5" placeholder="0" oninput="calculateTotalScore(); autoSaveState()">
+                    </div>
+                    <div>
+                        <label for="q3-feedback" style="font-size: 0.8rem; color: #78350f;">피드백 / 총평</label>
+                        <textarea id="q3-feedback" rows="3" placeholder="피드백을 입력하세요..." oninput="autoSaveState()"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="overall-teacher-box" class="card hidden" style="background-color: #fffbeb; border-color: #fde68a;">
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: #78350f; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                교사 종합 피드백 및 평가 총평
+            </h3>
+            <textarea id="overall-feedback" rows="4" placeholder="학생 전체 답안에 대한 총평이나 지도 사항을 기록하세요." oninput="autoSaveState()"></textarea>
+        </div>
+
+        <div class="action-bar">
+            <div class="action-notice">
+                작성 후 우측의 <strong>[답안 저장 및 제출용 파일 생성]</strong> 버튼을 눌러 바탕화면에 제출 파일을 생성하세요. 선생님이 파일을 회수할 때까지 컴퓨터를 끄지 말고 기다리세요.
+            </div>
+            <button onclick="saveStudentFile()" class="btn btn-submit">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span>답안 저장 및 제출용 파일 생성</span>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Embedded State Container (UTF-8 Base64 or JSON) -->
+    <script id="INITIAL_STATE" type="text/plain"></script>
+
+    <script>
+        // Default application state
+        let state = {
+            studentId: "",
+            studentName: "",
+            q1Answer: "",
+            q2Answer: "",
+            q3Answer: "선택한 역할: \n입장 및 근거 두 가지: ",
+            q1Score: "",
+            q2Score: "",
+            q3Score: "",
+            q1Feedback: "",
+            q2Feedback: "",
+            q3Feedback: "",
+            overallFeedback: "",
+            isTeacherMode: false
+        };
+
+        let fileHandle = null;
+
+        // UTF-8 safe Base64 Encoder
+        function encodeState(obj) {
+            try {
+                const jsonStr = JSON.stringify(obj);
+                return btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+                    return String.fromCharCode('0x' + p1);
+                }));
+            } catch (e) {
+                console.error("Encoding state error:", e);
+                return "";
+            }
+        }
+
+        // UTF-8 safe Base64 / JSON Decoder
+        function decodeState(rawStr) {
+            if (!rawStr) return null;
+            const str = rawStr.trim();
+            if (!str) return null;
+            try {
+                // Backward compatibility for plain JSON format
+                if (str.startsWith('{')) {
+                    return JSON.parse(str);
+                }
+                const jsonStr = decodeURIComponent(Array.prototype.map.call(atob(str), function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonStr);
+            } catch (e) {
+                console.error("Decoding state error:", e);
+                return null;
+            }
+        }
+
+        function init() {
+            try {
+                const rawData = document.getElementById('INITIAL_STATE').textContent;
+                const savedState = decodeState(rawData);
+                if (savedState) {
+                    state = { ...state, ...savedState };
+                }
+            } catch (e) {
+                console.error("Initial state restore error:", e);
+            }
+
+            document.getElementById('student-id').value = state.studentId || "";
+            document.getElementById('student-name').value = state.studentName || "";
+
+            for (let i = 1; i <= 3; i++) {
+                document.getElementById(`q${i}-answer`).value = state[`q${i}Answer`] || "";
+                document.getElementById(`q${i}-score`).value = state[`q${i}Score`] || "";
+                document.getElementById(`q${i}-feedback`).value = state[`q${i}Feedback`] || "";
+                updateCharCount(i);
+            }
+
+            document.getElementById('overall-feedback').value = state.overallFeedback || "";
+
+            calculateTotalScore();
+            updateFilenamePreview();
+            applyTeacherUI(state.isTeacherMode);
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+
+        function toggleTeacherMode() {
+            state.isTeacherMode = !state.isTeacherMode;
+            applyTeacherUI(state.isTeacherMode);
+            if (state.isTeacherMode) {
+                showToast('교사용 채점모드가 활성화되었습니다.', 'info');
+            } else {
+                showToast('학생 작성모드로 전환되었습니다.', 'default');
+            }
+        }
+
+        function autoSaveState() {
+            state.studentId = document.getElementById('student-id').value;
+            state.studentName = document.getElementById('student-name').value;
+
+            for (let i = 1; i <= 3; i++) {
+                state[`q${i}Answer`] = document.getElementById(`q${i}-answer`).value;
+                state[`q${i}Score`] = document.getElementById(`q${i}-score`).value;
+                state[`q${i}Feedback`] = document.getElementById(`q${i}-feedback`).value;
+            }
+
+            state.overallFeedback = document.getElementById('overall-feedback').value;
+            updateFilenamePreview();
+        }
+
+        function applyTeacherUI(isTeacher) {
+            const teacherBtn = document.getElementById('btn-teacher-mode');
+            const teacherBtnText = document.getElementById('teacher-btn-text');
+            const summaryBox = document.getElementById('score-summary-box');
+            const overallBox = document.getElementById('overall-teacher-box');
+
+            for (let i = 1; i <= 3; i++) {
+                const grid = document.getElementById(`q${i}-grid`);
+                const teacherCol = document.getElementById(`q${i}-teacher-container`);
+
+                if (isTeacher) {
+                    grid.classList.add('teacher-active');
+                    teacherCol.classList.remove('hidden');
+                } else {
+                    grid.classList.remove('teacher-active');
+                    teacherCol.classList.add('hidden');
+                }
+            }
+
+            if (isTeacher) {
+                teacherBtn.classList.add('active');
+                teacherBtnText.innerText = '채점 모드 해제';
+                summaryBox.classList.remove('hidden');
+                overallBox.classList.remove('hidden');
+            } else {
+                teacherBtn.classList.remove('active');
+                teacherBtnText.innerText = '교사용 채점모드';
+                summaryBox.classList.add('hidden');
+                overallBox.classList.add('hidden');
+            }
+        }
+
+        function calculateTotalScore() {
+            let total = 14; // 기본점수 14점
+            let count = 0;
+
+            for (let i = 1; i <= 3; i++) {
+                const val = parseFloat(document.getElementById(`q${i}-score`).value);
+                if (!isNaN(val)) {
+                    total += val;
+                    count++;
+                }
+            }
+
+            const totalDisplay = document.getElementById('total-score-num');
+            const totalContainer = document.getElementById('total-score-display');
+
+            totalDisplay.innerText = total;
+
+            if (count > 0) {
+                totalContainer.className = 'score-num-active';
+            } else {
+                totalContainer.className = 'score-num-inactive';
+            }
+        }
+
+        function updateCharCount(qNum) {
+            const text = document.getElementById(`q${qNum}-answer`).value;
+            document.getElementById(`q${qNum}-char-count`).innerText = text.length;
+        }
+
+        function updateFilenamePreview() {
+            const id = document.getElementById('student-id').value.trim() || '학번';
+            const name = document.getElementById('student-name').value.trim() || '이름';
+            document.getElementById('expected-filename').innerText = `${id}_${name}_인공지능기초_수행평가2.html`;
+        }
+
+        async function saveStudentFile() {
+            autoSaveState();
+
+            if (!state.studentId.trim() || !state.studentName.trim()) {
+                showToast('학번과 이름을 먼저 입력해주세요!', 'error');
+                document.getElementById('student-id').focus();
+                return;
+            }
+
+            const docClone = document.documentElement.cloneNode(true);
+
+            // Populate form values in cloned HTML DOM
+            const idInput = docClone.querySelector('#student-id');
+            if (idInput) idInput.setAttribute('value', state.studentId);
+
+            const nameInput = docClone.querySelector('#student-name');
+            if (nameInput) nameInput.setAttribute('value', state.studentName);
+
+            for (let i = 1; i <= 3; i++) {
+                const qAns = docClone.querySelector(`#q${i}-answer`);
+                if (qAns) qAns.textContent = state[`q${i}Answer`];
+
+                const qScore = docClone.querySelector(`#q${i}-score`);
+                if (qScore) qScore.setAttribute('value', state[`q${i}Score`]);
+
+                const qFb = docClone.querySelector(`#q${i}-feedback`);
+                if (qFb) qFb.textContent = state[`q${i}Feedback`];
+            }
+
+            const overallFb = docClone.querySelector('#overall-feedback');
+            if (overallFb) overallFb.textContent = state.overallFeedback;
+
+            // Safe Base64 encoding of state
+            const safeStateBase64 = encodeState(state);
+            const stateScript = docClone.querySelector('#INITIAL_STATE');
+            if (stateScript) stateScript.textContent = safeStateBase64;
+
+            const fullHtmlContent = "<!DOCTYPE html>\n" + docClone.outerHTML;
+            const fileName = `${state.studentId.trim()}_${state.studentName.trim()}_인공지능기초_수행평가2.html`;
+
+            // Direct Overwrite File System Access API
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const isAlreadyHasHandle = !!fileHandle;
+
+                    if (!fileHandle) {
+                        fileHandle = await window.showSaveFilePicker({
+                            suggestedName: fileName,
+                            types: [{
+                                description: 'HTML 문서',
+                                accept: { 'text/html': ['.html'] }
+                            }]
+                        });
+                    }
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(fullHtmlContent);
+                    await writable.close();
+
+                    if (isAlreadyHasHandle) {
+                        showToast(`'${fileName}' 기존 파일에 덮어쓰기 저장되었습니다!`, 'success');
+                    } else {
+                        showToast(`'${fileName}' 파일로 성공적으로 저장되었습니다!`, 'success');
+                    }
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                    console.warn('File System Access API fallback:', err);
+                }
+            }
+
+            // Standard Download Fallback
+            const blob = new Blob([fullHtmlContent], { type: 'text/html;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast(`'${fileName}' 파일로 성공적으로 저장되었습니다!`, 'success');
+        }
+
+        function showToast(message, type = 'default') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let typeClass = 'toast-default';
+            if (type === 'success') typeClass = 'toast-success';
+            else if (type === 'error') typeClass = 'toast-error';
+            else if (type === 'info') typeClass = 'toast-info';
+
+            toast.className = `toast ${typeClass}`;
+            toast.innerHTML = `<span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => toast.classList.add('show'));
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
