@@ -1277,130 +1277,240 @@
 
 
         // High Quality Reliable Export (PNG / JPG / PDF)
-        async function exportCanvas(format) {
-            document.getElementById('export-menu').classList.add('hidden');
+        function exportCanvas(format) {
+    // 학번과 이름 입력받기
+    const studentId = prompt('학번을 입력하세요:');
 
-            const savedSelectedId = state.selectedId;
-            const savedSelectedType = state.selectedType;
-            state.selectedId = null;
-            state.selectedType = null;
-            render();
+    if (studentId === null) {
+        return;
+    }
 
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const studentName = prompt('이름을 입력하세요:');
 
-            state.shapes.forEach(s => {
-                minX = Math.min(minX, s.x);
-                minY = Math.min(minY, s.y);
-                maxX = Math.max(maxX, s.x + s.width);
-                maxY = Math.max(maxY, s.y + s.height);
-            });
+    if (studentName === null) {
+        return;
+    }
 
-            state.lines.forEach(l => {
-                const { start, end, points } = computeLinePath(l);
-                if (start) { minX = Math.min(minX, start.x); minY = Math.min(minY, start.y); maxX = Math.max(maxX, start.x); maxY = Math.max(maxY, start.y); }
-                if (end) { minX = Math.min(minX, end.x); minY = Math.min(minY, end.y); maxX = Math.max(maxX, end.x); maxY = Math.max(maxY, end.y); }
-                if (points) {
-                    points.forEach(p => {
-                        minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
-                        maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
-                    });
-                }
-            });
+    // 공백 및 특수문자 정리
+    const cleanStudentId = studentId.trim();
+    const cleanStudentName = studentName.trim();
 
-            if (minX === Infinity) {
-                minX = 100; minY = 100; maxX = 900; maxY = 700;
-            }
+    if (!cleanStudentId || !cleanStudentName) {
+        alert('학번과 이름을 모두 입력해주세요.');
+        return;
+    }
 
-            const padding = 50;
-            const contentX = Math.floor(minX - padding);
-            const contentY = Math.floor(minY - padding);
-            const width = Math.ceil((maxX - minX) + padding * 2);
-            const height = Math.ceil((maxY - minY) + padding * 2);
+    // 파일명에 사용할 수 없는 문자 제거
+    const safeStudentId = cleanStudentId.replace(/[\\/:*?"<>|]/g, '');
+    const safeStudentName = cleanStudentName.replace(/[\\/:*?"<>|]/g, '');
 
-            const svgClone = svgCanvas.cloneNode(true);
-            
-            // Clean up temporary elements from clone so they don't appear in export
-            const cloneInteraction = svgClone.querySelector('#interaction-layer');
-            if (cloneInteraction) cloneInteraction.remove();
-            const cloneTempLine = svgClone.querySelector('#temp-line');
-            if (cloneTempLine) cloneTempLine.remove();
+    // 최종 파일명
+    const fileName = `순서도_${safeStudentId}_${safeStudentName}`;
 
-            svgClone.setAttribute('width', width);
-            svgClone.setAttribute('height', height);
-            svgClone.setAttribute('viewBox', `${contentX} ${contentY} ${width} ${height}`);
+    // 현재 선택 상태 저장
+    const savedSelectedId = state.selectedId;
+    const savedSelectedType = state.selectedType;
 
-            const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            bgRect.setAttribute('x', contentX);
-            bgRect.setAttribute('y', contentY);
-            bgRect.setAttribute('width', width);
-            bgRect.setAttribute('height', height);
-            bgRect.setAttribute('fill', '#f8fafc');
-            svgClone.insertBefore(bgRect, svgClone.firstChild);
+    // 저장할 때 선택 표시 제거
+    state.selectedId = null;
+    state.selectedType = null;
+    render();
 
-            const serializer = new XMLSerializer();
-            let svgString = serializer.serializeToString(svgClone);
+    // 순서도 내용이 들어있는 영역 계산
+    const padding = 50;
 
-            if (!svgString.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
-                svgString = svgString.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
-            }
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
 
-            const img = new Image();
-            const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-            const url = URL.createObjectURL(svgBlob);
+    state.shapes.forEach(shape => {
+        minX = Math.min(minX, shape.x);
+        minY = Math.min(minY, shape.y);
+        maxX = Math.max(maxX, shape.x + shape.width);
+        maxY = Math.max(maxY, shape.y + shape.height);
+    });
 
-            img.onload = () => {
-                const scale = 2; // high definition multiplier
-                const canvas = document.createElement('canvas');
-                canvas.width = width * scale;
-                canvas.height = height * scale;
-                const ctx = canvas.getContext('2d');
-                ctx.scale(scale, scale);
+    state.lines.forEach(line => {
+        const result = computeLinePath(line);
 
-                ctx.drawImage(img, 0, 0);
-                URL.revokeObjectURL(url);
+        result.points.forEach(point => {
+            minX = Math.min(minX, point.x);
+            minY = Math.min(minY, point.y);
+            maxX = Math.max(maxX, point.x);
+            maxY = Math.max(maxY, point.y);
+        });
+    });
 
-                if (format === 'png' || format === 'jpg') {
-                    const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
-                    if (format === 'jpg') {
-                        ctx.globalCompositeOperation = 'destination-over';
-                        ctx.fillStyle = '#ffffff';
-                        ctx.fillRect(0, 0, width, height);
-                    }
-                    const imgURI = canvas.toDataURL(mimeType, 0.95);
-                    const link = document.createElement('a');
-                    link.download = `순서도_${new Date().toISOString().slice(0, 10)}.${format}`;
-                    link.href = imgURI;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                } else if (format === 'pdf') {
-                    const { jsPDF } = window.jspdf;
-                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                    const pdf = new jsPDF({
-                        orientation: width > height ? 'landscape' : 'portrait',
-                        unit: 'px',
-                        format: [width, height]
-                    });
-                    pdf.addImage(imgData, 'JPEG', 0, 0, width, height);
-                    pdf.save(`순서도_${new Date().toISOString().slice(0, 10)}.pdf`);
-                }
+    // 순서도가 비어 있는 경우
+    if (minX === Infinity) {
+        minX = 0;
+        minY = 0;
+        maxX = 800;
+        maxY = 600;
+    }
 
-                state.selectedId = savedSelectedId;
-                state.selectedType = savedSelectedType;
-                render();
-                if (state.selectedId) renderPropertiesPanel();
-            };
+    const contentX = minX - padding;
+    const contentY = minY - padding;
+    const width = maxX - minX + padding * 2;
+    const height = maxY - minY + padding * 2;
 
-            img.onerror = (e) => {
-                console.error('Export render error:', e);
-                state.selectedId = savedSelectedId;
-                state.selectedType = savedSelectedType;
-                render();
-                alert('이미지 생성 중 오류가 발생했습니다.');
-            };
+    // SVG 복제
+    const svgClone = svgCanvas.cloneNode(true);
 
-            img.src = url;
+    svgClone.setAttribute('width', width);
+    svgClone.setAttribute('height', height);
+    svgClone.setAttribute(
+        'viewBox',
+        `${contentX} ${contentY} ${width} ${height}`
+    );
+
+    // 배경 추가
+    const bgRect = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'rect'
+    );
+
+    bgRect.setAttribute('x', contentX);
+    bgRect.setAttribute('y', contentY);
+    bgRect.setAttribute('width', width);
+    bgRect.setAttribute('height', height);
+    bgRect.setAttribute('fill', '#f8fafc');
+
+    svgClone.insertBefore(bgRect, svgClone.firstChild);
+
+    // SVG → 이미지
+    const serializer = new XMLSerializer();
+    let svgString = serializer.serializeToString(svgClone);
+
+    if (
+        !svgString.match(
+            /^<svg[^>]+xmlns="http:\/\/www.w3.org\/2000\/svg"/
+        )
+    ) {
+        svgString = svgString.replace(
+            /^<svg/,
+            '<svg xmlns="http://www.w3.org/2000/svg"'
+        );
+    }
+
+    const img = new Image();
+
+    const svgBlob = new Blob(
+        [svgString],
+        { type: 'image/svg+xml;charset=utf-8' }
+    );
+
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+        const scale = 2;
+
+        const canvas = document.createElement('canvas');
+
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+
+        const ctx = canvas.getContext('2d');
+
+        ctx.scale(scale, scale);
+
+        // PNG/JPG/PDF 모두 흰 배경
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.drawImage(img, 0, 0);
+
+        URL.revokeObjectURL(url);
+
+        // PNG / JPG 저장
+        if (format === 'png' || format === 'jpg') {
+
+            const mimeType =
+                format === 'png'
+                    ? 'image/png'
+                    : 'image/jpeg';
+
+            const imgURI = canvas.toDataURL(
+                mimeType,
+                0.95
+            );
+
+            const link = document.createElement('a');
+
+            link.download = `${fileName}.${format}`;
+            link.href = imgURI;
+
+            document.body.appendChild(link);
+
+            link.click();
+
+            document.body.removeChild(link);
+
         }
+
+        // PDF 저장
+        else if (format === 'pdf') {
+
+            const { jsPDF } = window.jspdf;
+
+            const imgData = canvas.toDataURL(
+                'image/jpeg',
+                0.95
+            );
+
+            const pdf = new jsPDF({
+                orientation:
+                    width > height
+                        ? 'landscape'
+                        : 'portrait',
+
+                unit: 'px',
+
+                format: [width, height]
+            });
+
+            pdf.addImage(
+                imgData,
+                'JPEG',
+                0,
+                0,
+                width,
+                height
+            );
+
+            pdf.save(`${fileName}.pdf`);
+        }
+
+        // 원래 선택 상태 복구
+        state.selectedId = savedSelectedId;
+        state.selectedType = savedSelectedType;
+
+        render();
+
+        if (state.selectedId) {
+            renderPropertiesPanel();
+        }
+    };
+
+    img.onerror = (e) => {
+
+        console.error(
+            'Export render error:',
+            e
+        );
+
+        // 원래 선택 상태 복구
+        state.selectedId = savedSelectedId;
+        state.selectedType = savedSelectedType;
+
+        render();
+
+        alert('이미지 생성 중 오류가 발생했습니다.');
+    };
+
+    img.src = url;
+}
 
         window.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
